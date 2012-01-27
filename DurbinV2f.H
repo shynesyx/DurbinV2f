@@ -2,16 +2,16 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 1991-2005 OpenCFD Ltd.
+    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
 
-    OpenFOAM is free software; you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by the
-    Free Software Foundation; either version 2 of the License, or (at your
-    option) any later version.
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
     OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
     ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -19,14 +19,21 @@ License
     for more details.
 
     You should have received a copy of the GNU General Public License
-    along with OpenFOAM; if not, write to the Free Software Foundation,
-    Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    DurbinV2f
+    Foam::incompressible::RASModels::DurbinV2f
 
 Description
-    Durbin V2f turbulence model.
+    Durbin V2f turbulence model for incompressible flows
+
+    The default model coefficients correspondg to the following:
+    \verbatim
+        DurbinV2fCoeffs
+	{
+	    Cmu
+	}
+    \endverbatim
 
 SourceFiles
     DurbinV2f.C
@@ -46,7 +53,6 @@ Author
 
 namespace Foam
 {
-  //namespace turbulenceModels
 namespace incompressible
 {
 namespace RASModels
@@ -58,9 +64,12 @@ namespace RASModels
 
 class DurbinV2f
 :
-    public turbulenceModel
+    public RASModel
 {
-    // Private data
+
+protected:
+
+    // Protected data
 
         // Model coefficients
             dimensionedScalar Cmu_;
@@ -72,11 +81,10 @@ class DurbinV2f
             dimensionedScalar C2_;
             dimensionedScalar CL_;
             dimensionedScalar Ceta_;
-            dimensionedScalar oneOnSigmaK_;
-            dimensionedScalar oneOnSigmaEps_;
+            dimensionedScalar sigmaEps_;
             dimensionedScalar yStarLim_;
 
-            dimensionedScalar f0_;
+            dimensionedScalar fMin_;
 
             wallDist yw_;
 
@@ -89,10 +97,10 @@ class DurbinV2f
             volScalarField nut_;
 
 
-    // Private member functions
+    // Protected member functions
 
-        tmp<volScalarField> T_() const;
-        tmp<volScalarField> L_() const;
+        tmp<volScalarField> T() const;
+        tmp<volScalarField> L() const;
 
 public:
 
@@ -106,13 +114,16 @@ public:
         (
             const volVectorField& U,
             const surfaceScalarField& phi,
-            transportModel& transport
+            transportModel& transport,
+            const word& turbulenceModelName = turbulenceModel::typeName,
+            const word& modelName = typeName
         );
 
 
     // Destructor
 
-        ~DurbinV2f(){}
+    virtual ~DurbinV2f()
+    {}
 
 
     // Member Functions
@@ -128,7 +139,7 @@ public:
         {
             return tmp<volScalarField> 
             (
-                new volScalarField("DkEff", oneOnSigmaK*nut_ + nu())
+                new volScalarField("DkEff", nut_ + nu())
             );
         }
 
@@ -137,40 +148,51 @@ public:
         {
             return tmp<volScalarField> 
             (
-                new volScalarField("DepsilonEff", oneOnSigmaEps*nut_ + nu())
+                new volScalarField("DepsilonEff", nut_/sigmaEps_ + nu())
             );
         }
 
-        tmp<volScalarField> k() const
+        //- Return the turbulence kinetic energy
+        virtual tmp<volScalarField> k() const
         {
             return k_;
         }
 
         //- Note that epsilonTilda is returned as epsilon.
         //  This is the appropriate variable for most purposes.
-        tmp<volScalarField> epsilon() const
+        virtual tmp<volScalarField> epsilon() const
         {
             return epsilon_;
         }
 
-        tmp<volScalarField> v2() const
+        //- Return turbulent velocity scale v^2
+        virtual tmp<volScalarField> v2() const
         {
             return v2_;
         }
 
-        tmp<volScalarField> f() const
+        //- Return 
+        virtual tmp<volScalarField> f() const
         {
             return f_;
         }
 
-        tmp<volSymmTensorField> R() const;
+        //- Return the Reynolds stress tensor
+        virtual tmp<volSymmTensorField> R() const;
 
-        tmp<fvVectorMatrix> divR(volVectorField& U) const;
+        //- Return the effective stress tensor including the laminar stress
+        virtual tmp<volSymmTensorField> devReff() const;
+  
+        //- Return the source term for the momentum equation
+        virtual tmp<fvVectorMatrix> divDevReff(volVectorField& U) const;
+    
+        // virtual tmp<fvVectorMatrix> divR(volVectorField& U) const;
 
-        void correct();
+        //- Solve the turbulence equations and correct the turbulence viscosity
+        virtual void correct();
 
         //- Read turbulenceProperties dictionary
-        bool read();
+        virtual bool read();
 };
 
 
