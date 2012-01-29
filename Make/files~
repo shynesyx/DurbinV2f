@@ -1,3 +1,0 @@
-DurbinV2f.C
-
-LIB = $(FOAM_USER_LIBBIN)/libUserIncompressibleModel
